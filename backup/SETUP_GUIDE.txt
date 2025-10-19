@@ -1,0 +1,495 @@
+# SmartSurveil - Installation & Setup Guide
+
+## 🎯 Quick Start (5 Minutes)
+
+Follow these steps to get SmartSurveil running on your local machine.
+
+---
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have:
+
+- **Python 3.8+** installed (check with `python --version`)
+- **pip** (Python package manager)
+- **Web Browser** (Chrome, Firefox, Safari, Edge)
+- **Camera** (USB webcam, IP camera, or RTSP camera)
+
+---
+
+## 🚀 Installation Steps
+
+### STEP 1: Extract the Project
+
+Extract the SmartSurveil.zip file to a folder on your computer:
+```
+SmartSurveil/
+├── backend/
+├── frontend/
+└── SETUP_GUIDE.txt
+```
+
+---
+
+### STEP 2: Setup Backend
+
+#### 2.1 Open Terminal/Command Prompt
+
+**Windows:**
+- Press `Win + R`, type `cmd`, press Enter
+
+**Mac/Linux:**
+- Press `Cmd + Space`, type `terminal`, press Enter
+
+#### 2.2 Navigate to Backend Folder
+
+```bash
+cd path/to/SmartSurveil/backend
+```
+
+Example:
+```bash
+cd C:\Users\YourName\Downloads\SmartSurveil\backend
+```
+
+#### 2.3 Create Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+#### 2.4 Activate Virtual Environment
+
+**Windows:**
+```bash
+venv\Scripts\activate
+```
+
+**Mac/Linux:**
+```bash
+source venv/bin/activate
+```
+
+You should see `(venv)` appear in your terminal prompt.
+
+#### 2.5 Install Python Dependencies
+
+```bash
+pip install flask==3.0.0
+pip install flask-cors==4.0.0
+pip install flask-socketio==5.3.5
+pip install python-socketio==5.10.0
+pip install ultralytics==8.1.0
+pip install opencv-python==4.8.1.78
+pip install numpy==1.24.3
+pip install Pillow==10.1.0
+pip install PyJWT==2.8.0
+pip install python-dotenv==1.0.0
+pip install bcrypt==4.1.2
+pip install email-validator==2.1.0
+```
+
+Or install all at once:
+```bash
+pip install -r requirements.txt
+```
+
+**Note:** This may take 5-10 minutes depending on your internet speed.
+
+#### 2.6 Configure Environment Variables (Optional)
+
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` file to add your email settings (for alerts):
+```
+SECRET_KEY=your-secret-key-here
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+EMAIL_ADDRESS=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+```
+
+**For Gmail:**
+1. Enable 2-factor authentication
+2. Go to: https://myaccount.google.com/apppasswords
+3. Generate app password
+4. Use that password (not your regular Gmail password)
+
+**Note:** Email is optional. The system works without it.
+
+#### 2.7 Start the Backend Server
+
+```bash
+python app.py
+```
+
+You should see:
+```
+=============================================================
+SmartSurveil Backend Starting...
+=============================================================
+Loading YOLOv8 model...
+Downloading yolov8n.pt... (first time only)
+YOLOv8 model loaded successfully!
+Server running on http://localhost:5000
+=============================================================
+```
+
+**✅ Backend is now running!** Keep this terminal open.
+
+---
+
+### STEP 3: Setup Frontend
+
+#### 3.1 Open New Terminal/Command Prompt
+
+Open a **NEW** terminal window (don't close the backend one).
+
+#### 3.2 Navigate to Frontend Folder
+
+```bash
+cd path/to/SmartSurveil/frontend
+```
+
+#### 3.3 Start Frontend Server
+
+**Option A: Using Python (Recommended)**
+```bash
+python -m http.server 8080
+```
+
+**Option B: Just Open in Browser**
+Simply double-click `index.html` in the frontend folder.
+
+#### 3.4 Open in Browser
+
+Open your web browser and go to:
+```
+http://localhost:8080
+```
+
+**✅ Frontend is now running!**
+
+---
+
+## 🎮 Using SmartSurveil
+
+### First Time Setup
+
+1. **Register Account**
+   - Click "Register here"
+   - Enter username, email, password
+   - Click "Register"
+   - You'll be redirected to login
+
+2. **Login**
+   - Enter your username and password
+   - Click "Login"
+   - You'll see the dashboard
+
+3. **Add Camera**
+   - Click "+ Add Camera" button
+   - Enter camera name (e.g., "My Webcam")
+   - Enter camera URL:
+     - For webcam: `0`
+     - For IP camera: `rtsp://username:password@192.168.1.100:554/stream`
+     - For HTTP stream: `http://192.168.1.100:8080/video`
+   - Click "Add Camera"
+
+4. **View Live Feed**
+   - Camera will appear in the grid
+   - Live video feed will start automatically
+   - Detection is enabled by default
+
+5. **Configure Detection**
+   - Click ⚙️ settings button on camera card
+   - Enter Region of Interest (ROI) coordinates
+   - Click "Save ROI"
+
+6. **Pause/Resume Detection**
+   - Click "⏸️ Pause" to stop detection (keeps video streaming)
+   - Click "▶️ Resume" to restart detection
+
+7. **View Alerts**
+   - When a person is detected, you'll see:
+     - Red box around detected person in video
+     - Alert notification (toast)
+     - Log entry in right sidebar
+     - Email alert (if configured)
+
+---
+
+## 🎯 Testing with Webcam
+
+### Quick Test:
+
+1. Add camera with URL: `0`
+2. Name it "My Webcam"
+3. Click "Add Camera"
+4. Your webcam feed will appear
+5. Walk in front of camera
+6. You should see red boxes and alerts!
+
+### Configure ROI (Optional):
+
+1. Click ⚙️ on camera card
+2. Set ROI (example for center detection):
+   - X: 160
+   - Y: 120
+   - Width: 320
+   - Height: 240
+3. Click "Save ROI"
+
+---
+
+## 📊 System Features
+
+### Detection Settings
+- **Confidence Threshold:** 0.5 (50% confidence required)
+- **Detection Interval:** 1 second between alerts
+- **Person Class:** COCO class 0 (person)
+- **Model:** YOLOv8 Nano (fast, accurate)
+
+### ROI Configuration
+- **Purpose:** Define specific area to monitor
+- **Default:** Full frame (0, 0, 640, 480)
+- **Custom:** Set X, Y, Width, Height coordinates
+
+### Email Alerts
+- **Triggers:** When person detected in ROI
+- **Contains:** Image of detection, timestamp, camera name
+- **Throttle:** Max 1 email per second per camera
+
+---
+
+## 🔧 Troubleshooting
+
+### Backend Won't Start
+
+**Problem:** "Module not found" error
+**Solution:** Make sure virtual environment is activated and dependencies installed
+```bash
+venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+```
+
+**Problem:** "Port 5000 already in use"
+**Solution:** Kill process using port 5000 or change port in app.py
+
+**Problem:** "YOLOv8 download failed"
+**Solution:** Check internet connection and try again
+
+### Frontend Issues
+
+**Problem:** "Cannot connect to backend"
+**Solution:** Make sure backend is running on http://localhost:5000
+
+**Problem:** "Token is invalid"
+**Solution:** Your session expired. Just login again.
+
+**Problem:** "Camera feed not showing"
+**Solution:** 
+1. Check camera URL is correct
+2. For webcam, try `0` or `1`
+3. For IP camera, verify credentials and URL
+4. Test camera URL in VLC player first
+
+### Detection Issues
+
+**Problem:** "Too many false detections"
+**Solution:** 
+1. Increase confidence threshold in `config.py`
+2. Configure smaller ROI
+3. Improve lighting
+
+**Problem:** "Not detecting people"
+**Solution:**
+1. Decrease confidence threshold
+2. Check ROI covers the area people walk
+3. Ensure good lighting
+4. People need to be visible (not too small in frame)
+
+**Problem:** "Detection is slow"
+**Solution:**
+1. Reduce frame size in config.py
+2. Use smaller ROI
+3. Limit number of cameras
+
+---
+
+## 🎨 Customization
+
+### Change Detection Sensitivity
+
+Edit `backend/config.py`:
+```python
+CONFIDENCE_THRESHOLD = 0.3  # Lower = more detections (more false positives)
+```
+
+### Change Alert Frequency
+
+Edit `backend/config.py`:
+```python
+DETECTION_INTERVAL = 5  # Seconds between alerts (5 = less spam)
+```
+
+### Change UI Colors
+
+Edit `frontend/css/style.css`:
+```css
+:root {
+    --primary: #3b82f6;  /* Change to any color */
+}
+```
+
+### Use Different YOLOv8 Model
+
+Edit `backend/config.py`:
+```python
+MODEL_NAME = 'yolov8s.pt'  # s=small, m=medium, l=large, x=xlarge
+```
+
+More accurate but slower. Choose based on your hardware.
+
+---
+
+## 💡 Tips for Best Results
+
+1. **Lighting:** Ensure good lighting in monitored areas
+2. **Camera Angle:** Mount at 45-degree angle for best detection
+3. **ROI:** Set ROI to specific doorways or paths
+4. **Testing:** Test with different confidence thresholds
+5. **Network:** Use wired connection for cameras when possible
+
+---
+
+## 🛑 Stopping the Application
+
+### Stop Backend:
+In backend terminal: Press `CTRL + C`
+
+### Stop Frontend:
+In frontend terminal: Press `CTRL + C`
+
+Or just close the browser tab.
+
+---
+
+## 📞 Common Camera URLs
+
+### Local Webcam
+```
+0
+```
+
+### IP Camera (RTSP)
+```
+rtsp://admin:password@192.168.1.100:554/stream
+rtsp://admin:password@192.168.1.100:554/h264
+```
+
+### IP Camera (HTTP)
+```
+http://192.168.1.100:8080/video
+http://admin:password@192.168.1.100/video.cgi
+```
+
+### Android IP Webcam
+```
+http://192.168.1.XXX:8080/video
+```
+
+### Raspberry Pi Camera
+```
+http://raspberrypi.local:8080/stream
+```
+
+---
+
+## 📁 Project Structure
+
+```
+SmartSurveil/
+├── backend/
+│   ├── app.py              # Main Flask server
+│   ├── config.py           # Settings
+│   ├── database.py         # SQLite database
+│   ├── detection.py        # YOLOv8 detection
+│   ├── requirements.txt    # Dependencies
+│   ├── .env.example        # Config template
+│   ├── alerts/             # Saved detection images
+│   └── smartsurveil.db     # Database (created automatically)
+│
+└── frontend/
+    ├── index.html          # Login page
+    ├── register.html       # Registration
+    ├── dashboard.html      # Main dashboard
+    ├── css/
+    │   └── style.css       # Styling
+    └── js/
+        ├── auth.js         # Authentication
+        ├── dashboard.js    # Dashboard logic
+        └── camera.js       # Camera management
+```
+
+---
+
+## ✅ Checklist
+
+Before asking for help, verify:
+
+- [ ] Python 3.8+ installed
+- [ ] Virtual environment activated
+- [ ] All dependencies installed (`pip list`)
+- [ ] Backend running on port 5000
+- [ ] Frontend accessible in browser
+- [ ] Camera URL is correct
+- [ ] No firewall blocking ports
+
+---
+
+## 🎓 What You've Built
+
+### Features:
+✅ Real-time human detection with YOLOv8
+✅ Multi-camera support
+✅ Region of Interest configuration
+✅ Live video streaming
+✅ Email & mobile alerts
+✅ User authentication
+✅ Intrusion logging
+✅ Pause/resume detection
+✅ Responsive web interface
+
+### Technologies:
+- **Backend:** Python, Flask, YOLOv8, OpenCV
+- **Frontend:** HTML, CSS, JavaScript, Socket.IO
+- **Database:** SQLite
+- **AI Model:** YOLOv8 (Ultralytics)
+- **Authentication:** JWT tokens
+
+---
+
+## 🚀 Next Steps
+
+1. **Test with webcam** - Get familiar with the system
+2. **Add IP cameras** - Connect your CCTV
+3. **Configure ROI** - Fine-tune detection zones
+4. **Setup email** - Get alerts on your phone
+5. **Customize** - Adjust settings for your needs
+
+---
+
+## 🎉 You're All Set!
+
+SmartSurveil is now running and ready to detect intrusions!
+
+**Need Help?**
+- Check troubleshooting section above
+- Verify all steps completed
+- Check terminal for error messages
+
+**Happy Surveillance! 🎥🔒**
