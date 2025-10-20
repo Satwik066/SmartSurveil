@@ -31,8 +31,8 @@ python app.py
 ### 2. Start Frontend
 
 ```bash
-cd frontend
-python -m http.server 8080
+cd react-frontend
+npm run dev
 ```
 
 ### 3. Open Browser
