@@ -31,7 +31,7 @@ const AddCameraDialog = ({ open, onOpenChange, onSuccess }: AddCameraDialogProps
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ name, stream_url: streamUrl })
+        body: JSON.stringify({name: name, url: streamUrl })
       });
 
       if (response.ok) {
