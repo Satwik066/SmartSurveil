@@ -8,7 +8,7 @@ interface StatsCardsProps {
 }
 
 const StatsCards = ({ cameras, logs }: StatsCardsProps) => {
-  const activeCameras = cameras.filter(c => c.status === 'active').length;
+  const activeCameras = cameras.filter(c => c.is_active).length;
   const todayLogs = logs.filter(log => {
     const logDate = new Date(log.timestamp);
     const today = new Date();

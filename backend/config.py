@@ -24,7 +24,7 @@ class Config:
 
     # Detection Settings
     PERSON_CLASS_ID = 0  # COCO dataset person class
-    DETECTION_INTERVAL = 300  # seconds between alerts
+    DETECTION_INTERVAL = 10  # seconds between alerts (reduced for testing)
 
     # Frame Processing
     FRAME_WIDTH = 640

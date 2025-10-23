@@ -27,6 +27,17 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
   const { toast } = useToast();
   const token = localStorage.getItem('token');
 
+  // Initialize pausedCameras from database state
+  useEffect(() => {
+    const paused = new Set<number>();
+    cameras.forEach(camera => {
+      if (!camera.detection_enabled) {
+        paused.add(camera.id);
+      }
+    });
+    setPausedCameras(paused);
+  }, [cameras]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -46,7 +57,7 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
   }, [socket, cameras]);
 
   const handleDeleteCamera = async (cameraId: number) => {
-    if (!confirm('Are you sure you want to delete this camera?')) return;
+    if (!confirm('Are you sure you want to delete this camera? This will also delete all associated intrusion logs.')) return;
 
     try {
       const response = await fetch(`${API_URL}/cameras/${cameraId}`, {
@@ -57,14 +68,17 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
       if (response.ok) {
         toast({
           title: "Camera deleted",
-          description: "Camera removed successfully",
+          description: "Camera and associated logs removed successfully",
         });
         onRefresh();
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete camera');
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete camera",
+        description: error instanceof Error ? error.message : "Failed to delete camera",
         variant: "destructive",
       });
     }
@@ -81,7 +95,7 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          enabled: isPaused // If paused, enable it; if enabled, pause it
+          enabled: isPaused // If paused (true), enable it (true); if enabled (false), pause it (false)
         })
       });
 
@@ -135,14 +149,22 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {cameras.map((camera) => (
+        {cameras.map((camera) => {
+          const statusLabel = pausedCameras.has(camera.id)
+            ? 'paused'
+            : (camera.is_active ? 'online' : 'offline');
+
+          return (
           <Card key={camera.id} className="overflow-hidden hover-lift">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">{camera.name}</CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge variant={pausedCameras.has(camera.id) ? 'secondary' : 'default'}>
-                    {pausedCameras.has(camera.id) ? 'paused' : camera.status}
+                    {statusLabel}
+                  </Badge>
+                  <Badge variant="outline">
+                    {camera.detection_enabled ? 'detection on' : 'detection off'}
                   </Badge>
                   <Button
                     variant="ghost"
@@ -216,7 +238,8 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
               </div>
             </CardContent>
           </Card>
-        ))}
+        );
+      })}
       </div>
 
       <AddCameraDialog 

@@ -13,8 +13,9 @@ const SOCKET_URL = 'http://localhost:5000';
 export interface Camera {
   id: number;
   name: string;
-  stream_url: string;
-  status: string;
+  url: string;                  // backend returns `url`
+  is_active?: boolean;          // maps to backend `is_active`
+  detection_enabled?: boolean;  // maps to backend `detection_enabled`
   roi_x?: number;
   roi_y?: number;
   roi_width?: number;
@@ -26,7 +27,7 @@ export interface IntrusionLog {
   camera_id: number;
   camera_name: string;
   timestamp: string;
-  confidence: number;
+  detection_count: number;
   image_path?: string;
 }
 
@@ -38,7 +39,17 @@ const Dashboard = () => {
   const { toast } = useToast();
   
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  // Safely parse user data
+  let user = { username: 'User', email: '' };
+  try {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      user = JSON.parse(userData);
+    }
+  } catch (error) {
+    console.error('Failed to parse user data:', error);
+  }
 
   useEffect(() => {
     if (!token) {
@@ -48,11 +59,11 @@ const Dashboard = () => {
 
     loadCameras();
     loadLogs();
-    connectWebSocket();
+    const newSocket = connectWebSocket();
 
     return () => {
-      if (socket) {
-        socket.disconnect();
+      if (newSocket) {
+        newSocket.disconnect();
       }
     };
   }, []);
@@ -65,15 +76,17 @@ const Dashboard = () => {
     });
 
     newSocket.on('intrusion_detected', (data) => {
+      console.log('Intrusion detected event received:', data);
       toast({
         title: "Intrusion Detected!",
-        description: `Camera: ${data.camera_name} - Confidence: ${(data.confidence * 100).toFixed(1)}%`,
+        description: `Camera: ${data.camera_name} - ${data.person_count} person(s) detected`,
         variant: "destructive",
       });
       loadLogs();
     });
 
     setSocket(newSocket);
+    return newSocket;
   };
 
   const loadCameras = async () => {
@@ -85,9 +98,19 @@ const Dashboard = () => {
       if (response.ok) {
         const data = await response.json();
         setCameras(data.cameras);
+      } else if (response.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/');
       }
     } catch (error) {
       console.error('Failed to load cameras:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load cameras. Please refresh the page.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -100,6 +123,11 @@ const Dashboard = () => {
       if (response.ok) {
         const data = await response.json();
         setLogs(data.logs);
+      } else if (response.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/');
       }
     } catch (error) {
       console.error('Failed to load logs:', error);

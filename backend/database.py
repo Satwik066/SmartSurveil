@@ -170,6 +170,22 @@ class Database:
         conn.close()
         return dict(camera) if camera else None
 
+    def delete_camera(self, camera_id):
+        """Delete camera and its associated logs"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Delete associated intrusion logs first (foreign key constraint)
+        cursor.execute('DELETE FROM intrusion_logs WHERE camera_id = ?', (camera_id,))
+        
+        # Delete the camera
+        cursor.execute('DELETE FROM cameras WHERE id = ?', (camera_id,))
+        
+        conn.commit()
+        deleted_count = cursor.rowcount
+        conn.close()
+        return deleted_count > 0
+
     def log_intrusion(self, camera_id, image_path, detection_count):
         """Log intrusion detection"""
         conn = self.get_connection()

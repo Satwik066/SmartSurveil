@@ -38,7 +38,7 @@ const CameraSettings = ({ camera, frame, open, onOpenChange, onSuccess }: Camera
         },
         body: JSON.stringify({
           name: cameraName,
-          url: streamUrl || camera.stream_url
+          url: streamUrl || camera.url
         })
       });
 
@@ -64,7 +64,7 @@ const CameraSettings = ({ camera, frame, open, onOpenChange, onSuccess }: Camera
   useEffect(() => {
     if (camera) {
       setCameraName(camera.name);
-      setStreamUrl(camera.stream_url);
+      setStreamUrl(camera.url);
     }
   }, [camera]);
 
@@ -127,8 +127,8 @@ const CameraSettings = ({ camera, frame, open, onOpenChange, onSuccess }: Camera
               <div className="space-y-2">
                 <Label>Status</Label>
                 <div className="flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full ${camera.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}`} />
-                  <span className="text-sm capitalize">{camera.status}</span>
+                  <div className={`h-2 w-2 rounded-full ${camera.is_active ? 'bg-green-500' : 'bg-gray-500'}`} />
+                  <span className="text-sm capitalize">{camera.is_active ? 'Active' : 'Inactive'}</span>
                 </div>
               </div>
 

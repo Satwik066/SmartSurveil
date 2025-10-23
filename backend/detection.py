@@ -55,10 +55,18 @@ class IntrusionDetector:
         x, y, w, h = roi['x'], roi['y'], roi['width'], roi['height']
 
         frame_h, frame_w = frame.shape[:2]
-        x = max(0, min(x, frame_w - 1))
-        y = max(0, min(y, frame_h - 1))
-        w = min(w, frame_w - x)
-        h = min(h, frame_h - y)
+        
+        # If ROI is not set or invalid (0,0,0,0), use the entire frame
+        if w <= 0 or h <= 0:
+            print(f"[DEBUG] ROI not set, using full frame: {frame_w}x{frame_h}")
+            x, y, w, h = 0, 0, frame_w, frame_h
+        else:
+            # Clamp ROI to frame boundaries
+            x = max(0, min(x, frame_w - 1))
+            y = max(0, min(y, frame_h - 1))
+            w = min(w, frame_w - x)
+            h = min(h, frame_h - y)
+            print(f"[DEBUG] Using ROI: x={x}, y={y}, w={w}, h={h}")
 
         roi_frame = frame[y:y+h, x:x+w]
 
@@ -91,6 +99,9 @@ class IntrusionDetector:
                         'bbox': [x1, y1, x2, y2],
                         'confidence': confidence
                     })
+        
+        if person_count > 0:
+            print(f"[DEBUG] Detected {person_count} person(s) with confidences: {[d['confidence'] for d in detections]}")
 
         annotated_frame = self.annotate_frame(frame.copy(), roi, detections, person_count)
 
@@ -103,10 +114,18 @@ class IntrusionDetector:
     def annotate_frame(self, frame, roi, detections, person_count):
         """Draw ROI and detections on frame"""
         x, y, w, h = roi['x'], roi['y'], roi['width'], roi['height']
+        
+        frame_h, frame_w = frame.shape[:2]
+        
+        # If ROI is not set or invalid, use full frame dimensions
+        if w <= 0 or h <= 0:
+            x, y, w, h = 0, 0, frame_w, frame_h
 
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
-        cv2.putText(frame, 'ROI', (x, y - 10), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+        # Only draw ROI rectangle if it's not the full frame
+        if not (x == 0 and y == 0 and w == frame_w and h == frame_h):
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+            cv2.putText(frame, 'ROI', (x, y - 10), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         for det in detections:
             x1, y1, x2, y2 = det['bbox']

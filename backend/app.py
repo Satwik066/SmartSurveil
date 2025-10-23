@@ -132,8 +132,12 @@ def process_camera_stream(camera_id):
 
                 if person_count > 0:
                     current_time = time.time()
+                    time_since_last = current_time - last_detection_time
+                    print(f"[DEBUG] Person detected! Count: {person_count}, Time since last alert: {time_since_last:.1f}s")
+                    
                     if current_time - last_detection_time > Config.DETECTION_INTERVAL:
                         last_detection_time = current_time
+                        print(f"[DEBUG] Sending alert for camera {camera['name']}")
 
                         image_path = detector.save_alert_image(alert_image, camera_id)
                         log_id = db.log_intrusion(camera_id, image_path, person_count)
@@ -150,8 +154,13 @@ def process_camera_stream(camera_id):
                             'timestamp': datetime.now().isoformat(),
                             'log_id': log_id
                         })
+                        print(f"[DEBUG] Alert sent via WebSocket for log_id: {log_id}")
+                    else:
+                        print(f"[DEBUG] Alert suppressed - waiting {Config.DETECTION_INTERVAL - time_since_last:.1f}s more")
 
                 frame = annotated_frame
+            else:
+                print(f"[DEBUG] Detection disabled for camera {camera_id}")
 
             _, buffer = cv2.imencode('.jpg', frame)
             frame_data = base64.b64encode(buffer).decode('utf-8')
@@ -285,6 +294,35 @@ def set_roi(current_user, camera_id):
 
     db.update_roi(camera_id, x, y, width, height)
     return jsonify({'message': 'ROI updated'}), 200
+
+
+@app.route('/api/cameras/<int:camera_id>', methods=['DELETE'])
+@token_required
+def delete_camera(current_user, camera_id):
+    """Delete camera"""
+    # Check if camera belongs to user
+    camera = db.get_camera(camera_id)
+    if not camera:
+        return jsonify({'error': 'Camera not found'}), 404
+    
+    # Verify ownership (get user cameras and check if this camera is in the list)
+    user_cameras = db.get_user_cameras(current_user)
+    if not any(c['id'] == camera_id for c in user_cameras):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    # Stop the camera stream if it's active
+    if camera_id in active_streams:
+        stream = active_streams[camera_id]
+        stream.release()
+        del active_streams[camera_id]
+        print(f"[DEBUG] Stopped stream for camera {camera_id}")
+    
+    # Delete from database
+    if db.delete_camera(camera_id):
+        print(f"[DEBUG] Camera {camera_id} deleted successfully")
+        return jsonify({'message': 'Camera deleted successfully'}), 200
+    else:
+        return jsonify({'error': 'Failed to delete camera'}), 500
 
 
 @app.route('/api/logs', methods=['GET'])

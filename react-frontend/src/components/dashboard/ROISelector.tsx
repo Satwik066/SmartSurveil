@@ -167,10 +167,10 @@ const ROISelector = ({ camera, frame, open, onOpenChange, onSuccess }: ROISelect
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0
+          x: null,
+          y: null,
+          width: null,
+          height: null
         })
       });
 

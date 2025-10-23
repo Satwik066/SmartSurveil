@@ -19,13 +19,23 @@ interface IntrusionLogsProps {
 const IntrusionLogs = ({ logs }: IntrusionLogsProps) => {
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleString();
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }).format(date);
   };
 
-  const getConfidenceBadge = (confidence: number) => {
-    const percent = confidence * 100;
-    if (percent >= 80) return <Badge className="bg-red-500">High</Badge>;
-    if (percent >= 60) return <Badge className="bg-orange-500">Medium</Badge>;
+  const getSeverityBadge = (count: number) => {
+    if (count >= 3) return <Badge className="bg-red-500">High Alert</Badge>;
+    if (count >= 2) return <Badge className="bg-orange-500">Medium</Badge>;
     return <Badge className="bg-yellow-500">Low</Badge>;
   };
 
@@ -55,8 +65,8 @@ const IntrusionLogs = ({ logs }: IntrusionLogsProps) => {
                 <TableRow>
                   <TableHead>Camera</TableHead>
                   <TableHead>Time</TableHead>
-                  <TableHead>Confidence</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Persons Detected</TableHead>
+                  <TableHead>Severity</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -76,17 +86,13 @@ const IntrusionLogs = ({ logs }: IntrusionLogsProps) => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div className="w-full max-w-[100px] bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full"
-                            style={{ width: `${log.confidence * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-sm">{(log.confidence * 100).toFixed(1)}%</span>
+                        <Badge variant="outline" className="font-mono">
+                          {log.detection_count} {log.detection_count === 1 ? 'person' : 'persons'}
+                        </Badge>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {getConfidenceBadge(log.confidence)}
+                      {getSeverityBadge(log.detection_count)}
                     </TableCell>
                   </TableRow>
                 ))}

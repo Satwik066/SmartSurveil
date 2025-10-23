@@ -28,7 +28,7 @@ const FullscreenCamera = ({ camera, frame, open, onOpenChange }: FullscreenCamer
           {camera && (
             <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-lg">
               <h3 className="font-semibold">{camera.name}</h3>
-              <p className="text-sm text-muted-foreground">{camera.stream_url}</p>
+              <p className="text-sm text-muted-foreground">{camera?.url}</p>
             </div>
           )}
         </div>
