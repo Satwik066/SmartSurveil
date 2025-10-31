@@ -23,6 +23,8 @@ const CameraSettings = ({ camera, frame, open, onOpenChange, onSuccess }: Camera
   const [activeTab, setActiveTab] = useState("general");
   const [cameraName, setCameraName] = useState(camera?.name || "");
   const [streamUrl, setStreamUrl] = useState("");
+  const [confidenceThreshold, setConfidenceThreshold] = useState(50);
+  const [alertInterval, setAlertInterval] = useState(30);
   const { toast } = useToast();
   const token = localStorage.getItem('token');
 
@@ -60,11 +62,52 @@ const CameraSettings = ({ camera, frame, open, onOpenChange, onSuccess }: Camera
     }
   };
 
+  const handleUpdateAdvancedSettings = async () => {
+    if (!camera) return;
+
+    try {
+      // Convert confidence from 0-100 to 0.0-1.0 for backend
+      const confidenceValue = confidenceThreshold / 100;
+
+      const response = await fetch(`${API_URL}/cameras/${camera.id}/advanced`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          confidence_threshold: confidenceValue,
+          alert_interval: alertInterval
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Advanced settings updated successfully",
+        });
+        onSuccess();
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update advanced settings');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update advanced settings",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Initialize form when camera changes
   useEffect(() => {
     if (camera) {
       setCameraName(camera.name);
       setStreamUrl(camera.url);
+      // Convert confidence from 0.0-1.0 to 0-100 for display
+      setConfidenceThreshold(Math.round((camera.confidence_threshold || 0.5) * 100));
+      setAlertInterval(camera.alert_interval || 30);
     }
   }, [camera]);
 
@@ -171,18 +214,32 @@ const CameraSettings = ({ camera, frame, open, onOpenChange, onSuccess }: Camera
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Confidence Threshold</Label>
-                    <Input type="number" min="0" max="100" defaultValue="50" disabled />
+                    <Label htmlFor="confidence-threshold">Confidence Threshold: {confidenceThreshold}%</Label>
+                    <Input 
+                      id="confidence-threshold"
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={confidenceThreshold}
+                      onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
+                      className="cursor-pointer"
+                    />
                     <p className="text-xs text-muted-foreground">
-                      Minimum confidence level for person detection (Coming soon)
+                      Minimum confidence level for person detection. Higher values reduce false positives.
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Alert Cooldown</Label>
-                    <Input type="number" min="0" defaultValue="30" disabled />
+                    <Label htmlFor="alert-interval">Alert Interval (seconds)</Label>
+                    <Input 
+                      id="alert-interval"
+                      type="number" 
+                      min="0" 
+                      value={alertInterval}
+                      onChange={(e) => setAlertInterval(Number(e.target.value))}
+                    />
                     <p className="text-xs text-muted-foreground">
-                      Seconds between alerts for the same detection (Coming soon)
+                      Minimum seconds between alerts for the same camera to prevent spam.
                     </p>
                   </div>
 
@@ -197,7 +254,10 @@ const CameraSettings = ({ camera, frame, open, onOpenChange, onSuccess }: Camera
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
-                  Close
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateAdvancedSettings} className="gradient-primary">
+                  Save Settings
                 </Button>
               </div>
             </div>

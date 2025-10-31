@@ -45,10 +45,23 @@ class Database:
                 roi_y INTEGER DEFAULT 0,
                 roi_width INTEGER DEFAULT 640,
                 roi_height INTEGER DEFAULT 480,
+                confidence_threshold REAL DEFAULT 0.5,
+                alert_interval INTEGER DEFAULT 30,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+        
+        # Add new columns to existing tables (migration)
+        try:
+            cursor.execute('ALTER TABLE cameras ADD COLUMN confidence_threshold REAL DEFAULT 0.5')
+        except:
+            pass  # Column already exists
+        
+        try:
+            cursor.execute('ALTER TABLE cameras ADD COLUMN alert_interval INTEGER DEFAULT 30')
+        except:
+            pass  # Column already exists
 
         # Intrusion logs table
         cursor.execute('''
@@ -217,3 +230,17 @@ class Database:
         logs = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return logs
+
+    def update_advanced_settings(self, camera_id, confidence_threshold, alert_interval):
+        """Update advanced detection settings for camera"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''UPDATE cameras 
+               SET confidence_threshold = ?, alert_interval = ? 
+               WHERE id = ?''',
+            (confidence_threshold, alert_interval, camera_id)
+        )
+        conn.commit()
+        conn.close()

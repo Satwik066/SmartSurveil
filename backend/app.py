@@ -103,6 +103,7 @@ def process_camera_stream(camera_id):
 
     active_streams[camera_id] = stream
     last_detection_time = 0
+    detection_was_enabled = None  # Track detection state changes
 
     try:
         while active_streams.get(camera_id) == stream:
@@ -121,6 +122,11 @@ def process_camera_stream(camera_id):
 
             person_count = 0
             if camera['detection_enabled']:
+                # Print message when detection is re-enabled
+                if detection_was_enabled != True:
+                    print(f"[DEBUG] Detection enabled for camera {camera['name']} (ID: {camera_id})")
+                    detection_was_enabled = True
+                
                 roi = {
                     'x': camera['roi_x'],
                     'y': camera['roi_y'],
@@ -128,14 +134,20 @@ def process_camera_stream(camera_id):
                     'height': camera['roi_height']
                 }
 
-                person_count, annotated_frame, alert_image = detector.detect_persons_in_roi(frame, roi)
+                # Use per-camera settings for detection
+                camera_confidence = camera.get('confidence_threshold', Config.CONFIDENCE_THRESHOLD)
+                person_count, annotated_frame, alert_image = detector.detect_persons_in_roi(
+                    frame, roi, confidence_threshold=camera_confidence
+                )
 
                 if person_count > 0:
                     current_time = time.time()
                     time_since_last = current_time - last_detection_time
                     print(f"[DEBUG] Person detected! Count: {person_count}, Time since last alert: {time_since_last:.1f}s")
                     
-                    if current_time - last_detection_time > Config.DETECTION_INTERVAL:
+                    # Use per-camera alert interval
+                    camera_alert_interval = camera.get('alert_interval', Config.DETECTION_INTERVAL)
+                    if current_time - last_detection_time > camera_alert_interval:
                         last_detection_time = current_time
                         print(f"[DEBUG] Sending alert for camera {camera['name']}")
 
@@ -147,28 +159,41 @@ def process_camera_stream(camera_id):
                             args=(camera['name'], image_path, person_count)
                         ).start()
 
-                        socketio.emit('intrusion_detected', {
-                            'camera_id': camera_id,
-                            'camera_name': camera['name'],
-                            'person_count': person_count,
-                            'timestamp': datetime.now().isoformat(),
-                            'log_id': log_id
-                        })
-                        print(f"[DEBUG] Alert sent via WebSocket for log_id: {log_id}")
+                        # Emit to frontend if clients are connected (optional)
+                        try:
+                            socketio.emit('intrusion_detected', {
+                                'camera_id': camera_id,
+                                'camera_name': camera['name'],
+                                'person_count': person_count,
+                                'timestamp': datetime.now().isoformat(),
+                                'log_id': log_id
+                            })
+                            print(f"[DEBUG] Alert sent via WebSocket for log_id: {log_id}")
+                        except Exception as e:
+                            print(f"[DEBUG] No WebSocket clients connected, alert logged: {log_id}")
                     else:
-                        print(f"[DEBUG] Alert suppressed - waiting {Config.DETECTION_INTERVAL - time_since_last:.1f}s more")
+                        camera_alert_interval = camera.get('alert_interval', Config.DETECTION_INTERVAL)
+                        print(f"[DEBUG] Alert suppressed - waiting {camera_alert_interval - time_since_last:.1f}s more")
 
                 frame = annotated_frame
             else:
-                print(f"[DEBUG] Detection disabled for camera {camera_id}")
+                # Only print message when detection state changes
+                if detection_was_enabled != False:
+                    print(f"[DEBUG] Detection disabled for camera {camera['name']} (ID: {camera_id})")
+                    detection_was_enabled = False
 
-            _, buffer = cv2.imencode('.jpg', frame)
-            frame_data = base64.b64encode(buffer).decode('utf-8')
+            # Only emit frames if there are connected clients (optional for monitoring)
+            try:
+                _, buffer = cv2.imencode('.jpg', frame)
+                frame_data = base64.b64encode(buffer).decode('utf-8')
 
-            socketio.emit(f'camera_frame_{camera_id}', {
-                'frame': frame_data,
-                'timestamp': time.time()
-            })
+                socketio.emit(f'camera_frame_{camera_id}', {
+                    'frame': frame_data,
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                # No clients connected, continue detection without streaming
+                pass
 
             time.sleep(0.033)
 
@@ -296,6 +321,42 @@ def set_roi(current_user, camera_id):
     return jsonify({'message': 'ROI updated'}), 200
 
 
+@app.route('/api/cameras/<int:camera_id>/advanced', methods=['POST'])
+@token_required
+def update_advanced_settings(current_user, camera_id):
+    """Update advanced detection settings for camera"""
+    data = request.json
+    confidence_threshold = data.get('confidence_threshold')
+    alert_interval = data.get('alert_interval')
+    
+    # Validate inputs
+    if confidence_threshold is not None:
+        confidence_threshold = float(confidence_threshold)
+        if not 0.0 <= confidence_threshold <= 1.0:
+            return jsonify({'error': 'Confidence threshold must be between 0.0 and 1.0'}), 400
+    else:
+        confidence_threshold = 0.5
+    
+    if alert_interval is not None:
+        alert_interval = int(alert_interval)
+        if alert_interval < 0:
+            return jsonify({'error': 'Alert interval must be non-negative'}), 400
+    else:
+        alert_interval = 30
+    
+    # Check if camera belongs to user
+    camera = db.get_camera(camera_id)
+    if not camera:
+        return jsonify({'error': 'Camera not found'}), 404
+    
+    user_cameras = db.get_user_cameras(current_user)
+    if not any(c['id'] == camera_id for c in user_cameras):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    db.update_advanced_settings(camera_id, confidence_threshold, alert_interval)
+    return jsonify({'message': 'Advanced settings updated'}), 200
+
+
 @app.route('/api/cameras/<int:camera_id>', methods=['DELETE'])
 @token_required
 def delete_camera(current_user, camera_id):
@@ -352,13 +413,49 @@ def handle_disconnect():
 
 @socketio.on('start_camera')
 def handle_start_camera(data):
-    """Start camera stream"""
+    """Start camera stream (frontend request)"""
     camera_id = data.get('camera_id')
     if camera_id and camera_id not in active_streams:
         thread = threading.Thread(target=process_camera_stream, args=(camera_id,))
         thread.daemon = True
         thread.start()
         stream_threads[camera_id] = thread
+        print(f"[DEBUG] Camera {camera_id} started via frontend request")
+
+
+def start_all_cameras():
+    """Start all active cameras on backend startup"""
+    print("\n" + "="*60)
+    print("Starting all active cameras for autonomous detection...")
+    print("="*60)
+    
+    # Get all cameras from database
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, name, is_active FROM cameras')
+    cameras = cursor.fetchall()
+    conn.close()
+    
+    started_count = 0
+    for camera in cameras:
+        camera_id = camera['id']
+        camera_name = camera['name']
+        is_active = camera['is_active']
+        
+        if is_active and camera_id not in active_streams:
+            thread = threading.Thread(target=process_camera_stream, args=(camera_id,))
+            thread.daemon = True
+            thread.start()
+            stream_threads[camera_id] = thread
+            started_count += 1
+            print(f"✓ Started camera: {camera_name} (ID: {camera_id})")
+        elif not is_active:
+            print(f"○ Skipped inactive camera: {camera_name} (ID: {camera_id})")
+    
+    print("="*60)
+    print(f"Total cameras started: {started_count}/{len(cameras)}")
+    print("Backend is now running autonomous intrusion detection!")
+    print("="*60 + "\n")
 
 
 if __name__ == '__main__':
@@ -369,4 +466,8 @@ if __name__ == '__main__':
     print(f"API endpoints available at http://localhost:5000/api")
     print("Press CTRL+C to stop the server")
     print("=" * 60)
+    
+    # Start all active cameras for autonomous detection
+    start_all_cameras()
+    
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)

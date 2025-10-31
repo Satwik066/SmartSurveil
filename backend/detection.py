@@ -50,9 +50,12 @@ class IntrusionDetector:
     
         os.makedirs(Config.ALERT_IMAGES_PATH, exist_ok=True)
 
-    def detect_persons_in_roi(self, frame, roi):
+    def detect_persons_in_roi(self, frame, roi, confidence_threshold=None):
         """Detect persons in region of interest"""
         x, y, w, h = roi['x'], roi['y'], roi['width'], roi['height']
+        
+        # Use provided threshold or fall back to default
+        conf_threshold = confidence_threshold if confidence_threshold is not None else self.confidence_threshold
 
         frame_h, frame_w = frame.shape[:2]
         
@@ -75,7 +78,7 @@ class IntrusionDetector:
 
         results = self.model.predict(
             roi_frame,
-            conf=self.confidence_threshold,
+            conf=conf_threshold,
             classes=[self.person_class_id],
             verbose=False,
             device='cuda' if Config.USE_GPU else 'cpu'
@@ -92,7 +95,7 @@ class IntrusionDetector:
                 class_id = int(box.cls[0])
                 confidence = float(box.conf[0])
 
-                if class_id == self.person_class_id and confidence >= self.confidence_threshold:
+                if class_id == self.person_class_id and confidence >= conf_threshold:
                     person_count += 1
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     detections.append({

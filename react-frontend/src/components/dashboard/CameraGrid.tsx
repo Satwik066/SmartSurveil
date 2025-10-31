@@ -163,9 +163,6 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
                   <Badge variant={pausedCameras.has(camera.id) ? 'secondary' : 'default'}>
                     {statusLabel}
                   </Badge>
-                  <Badge variant="outline">
-                    {camera.detection_enabled ? 'detection on' : 'detection off'}
-                  </Badge>
                   <Button
                     variant="ghost"
                     size="icon"

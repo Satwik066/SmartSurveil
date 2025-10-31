@@ -20,6 +20,8 @@ export interface Camera {
   roi_y?: number;
   roi_width?: number;
   roi_height?: number;
+  confidence_threshold?: number; // 0.0-1.0 range
+  alert_interval?: number;       // seconds between alerts
 }
 
 export interface IntrusionLog {
