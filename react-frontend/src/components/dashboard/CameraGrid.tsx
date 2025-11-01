@@ -41,18 +41,42 @@ const CameraGrid = ({ cameras, socket, onRefresh }: CameraGridProps) => {
   useEffect(() => {
     if (!socket) return;
 
-    cameras.forEach(camera => {
-      socket.emit('start_camera', { camera_id: camera.id });
-      
-      socket.on(`camera_frame_${camera.id}`, (data: { frame: string }) => {
-        setFrames(prev => ({ ...prev, [camera.id]: data.frame }));
+    // Wait for socket to connect before setting up listeners
+    const setupCameraStreams = () => {
+      if (!socket.connected) {
+        console.log('Socket not connected yet, waiting...');
+        return;
+      }
+
+      console.log('Setting up camera streams for', cameras.length, 'cameras');
+
+      cameras.forEach(camera => {
+        // Remove any existing listener first
+        socket.off(`camera_frame_${camera.id}`);
+        
+        // Register new listener
+        socket.on(`camera_frame_${camera.id}`, (data: { frame: string }) => {
+          setFrames(prev => ({ ...prev, [camera.id]: data.frame }));
+        });
+
+        // Request camera stream
+        console.log('Requesting stream for camera', camera.id);
+        socket.emit('start_camera', { camera_id: camera.id });
       });
-    });
+    };
+
+    if (socket.connected) {
+      setupCameraStreams();
+    } else {
+      // Wait for connection
+      socket.on('connect', setupCameraStreams);
+    }
 
     return () => {
       cameras.forEach(camera => {
         socket.off(`camera_frame_${camera.id}`);
       });
+      socket.off('connect', setupCameraStreams);
     };
   }, [socket, cameras]);
 

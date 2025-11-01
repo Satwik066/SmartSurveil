@@ -61,7 +61,6 @@ class IntrusionDetector:
         
         # If ROI is not set or invalid (0,0,0,0), use the entire frame
         if w <= 0 or h <= 0:
-            print(f"[DEBUG] ROI not set, using full frame: {frame_w}x{frame_h}")
             x, y, w, h = 0, 0, frame_w, frame_h
         else:
             # Clamp ROI to frame boundaries
@@ -69,7 +68,6 @@ class IntrusionDetector:
             y = max(0, min(y, frame_h - 1))
             w = min(w, frame_w - x)
             h = min(h, frame_h - y)
-            print(f"[DEBUG] Using ROI: x={x}, y={y}, w={w}, h={h}")
 
         roi_frame = frame[y:y+h, x:x+w]
 

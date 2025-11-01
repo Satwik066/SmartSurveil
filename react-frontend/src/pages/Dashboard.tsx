@@ -68,13 +68,24 @@ const Dashboard = () => {
         newSocket.disconnect();
       }
     };
-  }, []);
+  }, [token, navigate]);
 
   const connectWebSocket = () => {
-    const newSocket = io(SOCKET_URL);
+    const newSocket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    });
     
     newSocket.on('connect', () => {
-      console.log('WebSocket connected');
+      console.log('WebSocket connected, ID:', newSocket.id);
+      // Reload cameras to trigger frame streaming
+      loadCameras();
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('WebSocket disconnected');
     });
 
     newSocket.on('intrusion_detected', (data) => {
